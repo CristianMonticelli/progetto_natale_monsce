@@ -8,6 +8,19 @@ Il programma punta a risolvere un problema moderno che ho notato: quando si vuol
 - Caricamento automatico di foto e video all'ora e data specificate.
 - Gestione delle credenziali Instagram tramite interazione con l'utente su Telegram.
 - Salvataggio e ripristino dei dati utilizzando file JSON.
+- Possibilità di cancellare un post programmato.
+- Possibilità di visualizzare tutti i post programmati.
+### Come funziona
+1. premere /start
+
+2. inviare username e password Instagram (non saranno memorizzate)
+
+3. scegliere tra /insta /programmati /elimina
+- /insta: programma una storia o un post su Instagram
+- /programmati: visualizza tutti i post programmati
+- /elimina: cancella un post programmato
+
+!!vengono postati i post sul account corrente
 
 ## Librerie principali
 - **Telegram**: `telebot`
@@ -60,3 +73,4 @@ Si consiglia di utilizzare un ambiente virtuale per gestire le dipendenze del pr
     - Ulteriori specifiche saranno fornite dal bot in chat
 
 ![Screenshot del bot in azione](inutilita/fotoIntroSimpatica.png)
+

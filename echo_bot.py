@@ -8,9 +8,6 @@ from datetime import datetime
 from instagrapi import Client
 import signal
 
-# Imposta le tue credenziali
-#IG_USERNAME = 'monscelli'
-#IG_PASSWORD = '(Progetto1)'
 
 # Crea un'istanza del client Instagram
 cl = Client()
@@ -20,8 +17,6 @@ data_file = 'immagini/photos_data.json'
 # Lista per memorizzare i dati delle foto
 photos_data = []
 
-        
-
 class PostProgrammati:
     def __init__(self, file_path, future_datetime, chat_id, caption, media_type):
         self._file_path = file_path
@@ -29,7 +24,7 @@ class PostProgrammati:
         self._chat_id = chat_id
         self._caption = caption
         self._media_type = media_type
-        self._utente = None
+
     @property
     def file_path(self):
         return self._file_path
@@ -70,11 +65,6 @@ class PostProgrammati:
     def media_type(self, media_type):
         self._media_type = media_type
 
-    def utente(self,utente):
-        if self._utente is None:
-            self._utente = utente
-            
-
     def caricaPost(self):
         # Carica il file
         image_path = self.file_path
@@ -98,6 +88,7 @@ class PostProgrammati:
                 cl.photo_upload_to_story(image_path, caption)
                 with open(image_path, 'rb') as photo_file:
                     bot.send_photo(self.chat_id, photo_file, caption="Storia foto caricato con successo!")
+        
         os.remove(image_path)
         print("Media caricato con successo!")
         save_photos_data()
@@ -106,7 +97,6 @@ class Utente:
     def __init__(self, IG_USERNAME, IG_PASSWORD):
         self._IG_USERNAME = IG_USERNAME
         self._IG_PASSWORD = IG_PASSWORD
-        self._posts_programmati = []
 
     @property
     def IG_USERNAME(self):
@@ -124,22 +114,12 @@ class Utente:
     def IG_PASSWORD(self, IG_PASSWORD):
         self._IG_PASSWORD = IG_PASSWORD
 
-    @property
-    def post(self):
-        return self._posts_programmati
-    
-    def aggiungi_post(self, post):
-        if post not in self._posts_programmati:
-            self._posts_programmati.append(post)
-            post.utente(self)
 class Bot:
     def __init__(self):
         self.API_TOKEN = '7700145055:AAGqxka9kBvRXY9QTG0isGXSlYFq_LtzXfw'
 
 bot_instance = Bot()
 bot = telebot.TeleBot(bot_instance.API_TOKEN)
-
-
 
 # Funzione per gestire il comando /fine
 @bot.message_handler(commands=['fine'])
@@ -167,16 +147,15 @@ def load_photos_data():
                     photos_data.append(post)
 
 # Funzione per salvare i dati nel file JSON
-def save_photos_data(self,photos_data):
-    
+def save_photos_data():
     data = []
     for post in photos_data:
         data.append({
-            'file_path': self.file_path,
-            'future_datetime': self.future_datetime.strftime('%Y-%m-%d %H:%M'),
-            'chat_id': self.chat_id,
-            'caption': self.caption,
-            'media_type': self.media_type
+            'file_path': post.file_path,
+            'future_datetime': post.future_datetime.strftime('%Y-%m-%d %H:%M'),
+            'chat_id': post.chat_id,
+            'caption': post.caption,
+            'media_type': post.media_type,
         })
     with open(data_file, 'w') as f:
         json.dump(data, f)
@@ -193,19 +172,24 @@ def ask_password(message):
     bot.register_next_step_handler(message, lambda m: show_options(m, username))
 
 def show_options(message, username):
+    global cl
     password = message.text
     utente = Utente(username, password)
-    # Salva username e password come necessario
+    
+    try:
+        cl.login(utente.IG_USERNAME, utente.IG_PASSWORD)
+    except Exception as e:
+        bot.send_message(message.chat.id, f"Errore di connessione: {str(e)}. Per favore, riprova.")
+        bot.send_message(message.chat.id, "Per favore, inviami il tuo username di Instagram.")
+        bot.register_next_step_handler(message, ask_password)
+        return
+
     # Creazione di una tastiera personalizzata
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
-    #print(utente.IG_USERNAME, utente.IG_PASSWORD)
-    cl.login(utente.IG_USERNAME, utente.IG_PASSWORD)
-    # Aggiunta di pulsanti alla tastiera
     itembtn1 = types.KeyboardButton('/insta')
-    itembtn2 = types.KeyboardButton('/post_programmati')
-    
-    # Aggiunta dei pulsanti alla tastiera
-    markup.add(itembtn1,itembtn2)
+    itembtn2 = types.KeyboardButton('/programmati')
+    itembtn3 = types.KeyboardButton('/elimina')
+    markup.add(itembtn1, itembtn2, itembtn3)
 
     # Inviare un messaggio con la tastiera personalizzata
     bot.send_message(message.chat.id, "Benvenuto! Scegli un'opzione:", reply_markup=markup)
@@ -255,7 +239,6 @@ def ask_caption(media_message, original_message, future_datetime):
     bot.register_next_step_handler(media_message, lambda m: save_media(m, original_message, future_datetime, media_type))
 
 def save_media(caption_message, original_message, future_datetime, media_type):
-    
     caption = caption_message.text
     file_id = None
     file_type = None
@@ -304,10 +287,56 @@ def save_media(caption_message, original_message, future_datetime, media_type):
     photos_data.append(post)
 
     # Salva i dati in un file JSON
-    save_photos_data(photos_data)
+    save_photos_data()
+
+    # Invia la tastiera personalizzata con i comandi /insta, /programmati e /elimina
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True, one_time_keyboard=True)
+    itembtn1 = types.KeyboardButton('/insta')
+    itembtn2 = types.KeyboardButton('/programmati')
+    itembtn3 = types.KeyboardButton('/elimina')
+    markup.add(itembtn1, itembtn2, itembtn3)
+    bot.send_message(original_message.chat.id, "Scegli un'opzione:", reply_markup=markup)
 
     # Rispondi all'utente che la foto o video è stato salvato
     bot.reply_to(caption_message, f"Foto/Video salvato come {download_path} con data e ora future: {future_datetime.strftime('%Y-%m-%d %H:%M')} e didascalia: '{caption_message.text}'")
+
+# Funzione per gestire il comando /programmati
+@bot.message_handler(commands=['programmati'])
+def handle_programmati_command(message):
+    if not photos_data:
+        bot.reply_to(message, "Non ci sono post o storie programmati.")
+    else:
+        for post in photos_data:
+            bot.send_message(message.chat.id, f"File: {post.file_path}\nData e ora: {post.future_datetime.strftime('%Y-%m-%d %H:%M')}\nDidascalia: {post.caption}\nTipo: {post.media_type}")
+
+# Funzione per gestire il comando /elimina
+@bot.message_handler(commands=['elimina'])
+def handle_elimina_command(message):
+    if not photos_data:
+        bot.reply_to(message, "Non ci sono post o storie programmati.")
+    else:
+        bot.reply_to(message, "Ecco i post e le storie programmati. Scrivi il numero del file che vuoi eliminare:")
+        for post in photos_data:
+            file_name = os.path.basename(post.file_path)
+            file_number = file_name.split('_')[1].split('.')[0]
+            bot.send_message(message.chat.id, f"Numero: {file_number}\nFile: {post.file_path}\nData e ora: {post.future_datetime.strftime('%Y-%m-%d %H:%M')}\nDidascalia: {post.caption}\nTipo: {post.media_type}")
+        bot.register_next_step_handler(message, elimina_post)
+
+def elimina_post(message):
+    file_number = message.text
+    post_to_delete = next((post for post in photos_data if os.path.basename(post.file_path).split('_')[1].split('.')[0] == file_number), None)
+    if post_to_delete:
+        try:
+            os.remove(post_to_delete.file_path)
+        except OSError as e:
+            bot.reply_to(message, f"Errore durante l'eliminazione del file: {str(e)}")
+            return
+        photos_data.remove(post_to_delete)
+        save_photos_data()
+        bot.reply_to(message, f"Il post o la storia con numero {file_number} è stato eliminato.")
+    else:
+        bot.reply_to(message, "Numero del file non trovato. Per favore, riprova.")
+        bot.register_next_step_handler(message, elimina_post)
 
 def check_future_dates():
     while True:
@@ -316,21 +345,8 @@ def check_future_dates():
             if post.future_datetime.strftime('%Y-%m-%d %H:%M') == current_datetime:
                 post.caricaPost()
                 photos_data.remove(post)
-
-                
+                save_photos_data()
         time.sleep(60)  # Controlla ogni minuto
-
-# Funzione per gestire il comando /post_programmati
-@bot.message_handler(commands=['post_programmati'])
-def handle_post_programmati_command(message):
-    for post in photos_data:
-        if post.file_path.endswith('.mp4'):
-            with open(post.file_path, 'rb') as video:
-                bot.send_video(message.chat.id, video, caption=f"Data e ora: {post.future_datetime.strftime('%Y-%m-%d %H:%M')}\nTipo: {post.media_type}")
-        else:
-            with open(post.file_path, 'rb') as photo:
-                bot.send_photo(message.chat.id, photo, caption=f"Data e ora: {post.future_datetime.strftime('%Y-%m-%d %H:%M')}\nTipo: {post.media_type}")
-
 
 # Carica i dati all'avvio del bot
 load_photos_data()

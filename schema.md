@@ -18,5 +18,4 @@ classDiagram
         -str API_TOKEN
     }
 
-    Utente "1" --> "n" PostProgrammati : contiene
 ```
